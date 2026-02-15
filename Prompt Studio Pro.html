@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Studio Pro - Project Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .gallery-item:hover .gallery-overlay { opacity: 1; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6">
+    <div class="max-w-[1600px] mx-auto">
+        <header class="mb-6 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900">Prompt Studio Pro</h1>
+                <p class="text-slate-500 text-sm font-medium uppercase tracking-wider">Project Management & Manual Gallery</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <!-- Project Controls -->
+                <button onclick="exportProject()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                    Save Project (.json)
+                </button>
+                <button onclick="triggerProjectImport()" class="px-4 py-2 bg-white border border-indigo-200 text-indigo-600 text-sm font-bold rounded-xl hover:bg-indigo-50 transition-all shadow-sm flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    Load Project
+                </button>
+                <button onclick="downloadAsFile()" class="px-4 py-2 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">
+                    Export Text (.txt)
+                </button>
+                <button onclick="clearAll()" class="px-4 py-2 text-slate-400 hover:text-red-500 text-sm font-bold transition-all">Clear All</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- COLUMN 1: INPUTS -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">1. Master Prompt</label>
+                        <button onclick="triggerFileInput('master')" class="text-[10px] font-bold text-indigo-600 hover:underline">Load .txt</button>
+                    </div>
+                    <textarea id="masterPrompt" rows="4" 
+                        class="w-full p-4 text-sm text-slate-700 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        placeholder="วาง Master Template ของคุณ..."></textarea>
+                </div>
+
+                <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">2. Subject List</label>
+                        <button onclick="triggerFileInput('subject')" class="text-[10px] font-bold text-indigo-600 hover:underline">Import .txt</button>
+                    </div>
+                    <div class="mb-4 flex items-center gap-2">
+                        <input type="checkbox" id="splitByComma" class="rounded text-indigo-600 w-4 h-4 cursor-pointer">
+                        <label for="splitByComma" class="text-xs text-slate-500 cursor-pointer">แยกคำด้วยเครื่องหมายคอมม่า (,)</label>
+                    </div>
+                    <textarea id="subjectList" rows="12" 
+                        class="w-full p-4 text-sm text-slate-700 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        placeholder="1 บรรทัด = 1 รายการ..."></textarea>
+                </div>
+            </div>
+
+            <!-- COLUMN 2: PROMPTS -->
+            <div class="lg:col-span-4 space-y-4">
+                <div class="flex items-center justify-between px-2">
+                    <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                        Results 
+                        <span id="count" class="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </h2>
+                    <button onclick="copyAll()" class="text-xs font-bold text-indigo-600 hover:underline">Copy All</button>
+                </div>
+                <div id="resultsList" class="space-y-3 overflow-y-auto max-h-[calc(100vh-220px)] pr-2 custom-scrollbar">
+                    <div class="text-center py-20 text-slate-300 text-sm italic">รอข้อมูลนำเข้า...</div>
+                </div>
+            </div>
+
+            <!-- COLUMN 3: GALLERY -->
+            <div class="lg:col-span-4 space-y-4">
+                <div class="flex items-center justify-between px-2">
+                    <h2 class="font-bold text-slate-800 uppercase text-xs tracking-widest">3. Reference Gallery</h2>
+                    <span id="galleryCount" class="text-[10px] text-slate-400 font-bold">0 Items</span>
+                </div>
+                <div id="galleryList" class="grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(100vh-220px)] pr-2 custom-scrollbar pb-10">
+                    <!-- Images here -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Hidden Controls -->
+    <input type="file" id="fileInput" accept=".txt" class="hidden">
+    <input type="file" id="projectInput" accept=".json" class="hidden">
+    <input type="file" id="imageInput" accept="image/*" class="hidden">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-3 rounded-full shadow-2xl opacity-0 transition-all pointer-events-none z-50 transform translate-y-4 text-xs font-bold uppercase">
+        Notification
+    </div>
+
+    <script>
+        const masterInput = document.getElementById('masterPrompt');
+        const subjectsInput = document.getElementById('subjectList');
+        const splitByCommaCheck = document.getElementById('splitByComma');
+        const resultsList = document.getElementById('resultsList');
+        const galleryList = document.getElementById('galleryList');
+        const countSpan = document.getElementById('count');
+        const galleryCountSpan = document.getElementById('galleryCount');
+        const toast = document.getElementById('toast');
+        
+        const fileInput = document.getElementById('fileInput');
+        const projectInput = document.getElementById('projectInput');
+        const imageInput = document.getElementById('imageInput');
+
+        let savedGallery = [];
+        let pendingPromptForImage = "";
+        let currentTargetFile = 'subject';
+
+        function updateResults() {
+            const master = masterInput.value.trim();
+            const subjectsRaw = subjectsInput.value.trim();
+            
+            let subjects = [];
+            if (splitByCommaCheck.checked) {
+                subjects = subjectsRaw.split(/[,\n]/).map(s => s.trim()).filter(s => s !== "");
+            } else {
+                subjects = subjectsRaw.split('\n').map(s => s.trim()).filter(s => s !== "");
+            }
+            
+            countSpan.innerText = subjects.length;
+            resultsList.innerHTML = "";
+
+            if (subjects.length === 0) {
+                resultsList.innerHTML = `<div class="text-center py-20 text-slate-300 text-sm italic">รอข้อมูลนำเข้า...</div>`;
+                return;
+            }
+
+            subjects.forEach((subject, index) => {
+                let finalPrompt = (master === "") ? subject : (master.includes('[SUBJECT]') ? master.replace(/\[SUBJECT\]/g, subject) : master + " " + subject);
+                
+                const item = document.createElement('div');
+                item.className = "p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-indigo-200 transition-all";
+                item.innerHTML = `
+                    <div class="flex items-start gap-3 mb-3">
+                        <span class="text-[9px] font-bold bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded shrink-0">${index + 1}</span>
+                        <p class="text-[13px] text-slate-700 leading-relaxed font-medium break-words">${finalPrompt}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="copyText('${finalPrompt.replace(/'/g, "\\'")}')" class="flex-1 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-500 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition-all">Copy</button>
+                        <button onclick="openImagePicker('${finalPrompt.replace(/'/g, "\\'")}')" class="flex-1 py-1.5 bg-indigo-50 text-[10px] font-bold text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">Add Photo</button>
+                    </div>
+                `;
+                resultsList.appendChild(item);
+            });
+        }
+
+        // --- PROJECT MANAGEMENT (SAVE TEXT + IMAGES) ---
+
+        function exportProject() {
+            if (savedGallery.length === 0 && masterInput.value === "" && subjectsInput.value === "") {
+                showToast("ไม่มีข้อมูลให้บันทึก");
+                return;
+            }
+            
+            const projectData = {
+                master: masterInput.value,
+                subjects: subjectsInput.value,
+                gallery: savedGallery,
+                settings: { splitByComma: splitByCommaCheck.checked },
+                timestamp: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `prompt-project-${new Date().getTime()}.json`;
+            a.click();
+            showToast("Project Saved!");
+        }
+
+        function triggerProjectImport() { projectInput.click(); }
+
+        projectInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    masterInput.value = data.master || "";
+                    subjectsInput.value = data.subjects || "";
+                    savedGallery = data.gallery || [];
+                    splitByCommaCheck.checked = data.settings?.splitByComma || false;
+                    
+                    updateResults();
+                    renderGallery();
+                    showToast("Project Loaded!");
+                } catch (err) {
+                    showToast("ไฟล์ Project ไม่ถูกต้อง");
+                }
+                projectInput.value = "";
+            };
+            reader.readAsText(file);
+        };
+
+        // --- GALLERY HANDLERS ---
+
+        function openImagePicker(promptText) { pendingPromptForImage = promptText; imageInput.click(); }
+
+        imageInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                addToGallery(event.target.result, pendingPromptForImage);
+                imageInput.value = "";
+            };
+            reader.readAsDataURL(file);
+        };
+
+        function addToGallery(imgData, prompt) {
+            savedGallery.unshift({ id: Date.now(), img: imgData, prompt: prompt });
+            renderGallery();
+            showToast("Saved to Reference!");
+        }
+
+        function renderGallery() {
+            galleryList.innerHTML = "";
+            galleryCountSpan.innerText = `${savedGallery.length} Items`;
+            if (savedGallery.length === 0) {
+                galleryList.innerHTML = `<div class="col-span-2 text-center py-10 text-slate-300 text-sm italic">Gallery ว่างเปล่า</div>`;
+                return;
+            }
+            savedGallery.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "gallery-item bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm relative group";
+                div.innerHTML = `
+                    <img src="${item.img}" class="w-full aspect-square object-cover">
+                    <div class="gallery-overlay absolute inset-0 bg-black/80 opacity-0 transition-opacity flex flex-col justify-end p-3">
+                        <p class="text-[9px] text-white/70 line-clamp-4 mb-2 italic">"${item.prompt}"</p>
+                        <div class="flex gap-2">
+                            <button onclick="downloadImage('${item.img}')" class="flex-1 py-1.5 bg-white text-[9px] font-bold text-slate-900 rounded-lg">Down</button>
+                            <button onclick="removeFromGallery(${item.id})" class="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                galleryList.appendChild(div);
+            });
+        }
+
+        function removeFromGallery(id) { savedGallery = savedGallery.filter(i => i.id !== id); renderGallery(); }
+        function downloadImage(dataUrl) { const a = document.createElement('a'); a.href = dataUrl; a.download = `ref-${Date.now()}.png`; a.click(); }
+
+        // --- UTILS ---
+
+        function triggerFileInput(target) { currentTargetFile = target; fileInput.click(); }
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (currentTargetFile === 'master') masterInput.value = event.target.result;
+                else subjectsInput.value = event.target.result;
+                updateResults();
+                showToast("Text Loaded!");
+                fileInput.value = "";
+            };
+            reader.readAsText(file);
+        };
+
+        function copyText(text) {
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast("Copied!");
+        }
+
+        function copyAll() {
+            const allText = Array.from(resultsList.querySelectorAll('p')).map(p => p.innerText).join('\n');
+            if (allText) copyText(allText);
+        }
+
+        function downloadAsFile() {
+            const allText = Array.from(resultsList.querySelectorAll('p')).map(p => p.innerText).join('\n');
+            if (!allText) return;
+            const blob = new Blob([allText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `prompts-list.txt`; a.click();
+        }
+
+        function clearAll() {
+            if(!confirm("ต้องการล้างข้อมูลทั้งหมดรวมถึงรูปภาพใช่หรือไม่?")) return;
+            masterInput.value = ""; subjectsInput.value = ""; savedGallery = [];
+            renderGallery(); updateResults();
+        }
+
+        function showToast(msg) {
+            toast.innerText = msg; toast.style.opacity = '1'; toast.style.transform = 'translate(-50%, -10px)';
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translate(-50%, 0px)'; }, 2000);
+        }
+
+        masterInput.addEventListener('input', updateResults);
+        subjectsInput.addEventListener('input', updateResults);
+        splitByCommaCheck.addEventListener('change', updateResults);
+        updateResults();
+    </script>
+</body>
+</html>
