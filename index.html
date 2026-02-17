@@ -50,7 +50,7 @@
                     </div>
                     <textarea id="masterPrompt" rows="4" 
                         class="w-full p-4 text-sm text-slate-700 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                        placeholder="วาง Master Template ของคุณ..."></textarea>
+                        placeholder="วาง Master Template เช่น: A photo of [fruit name]..."></textarea>
                 </div>
 
                 <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
@@ -144,32 +144,64 @@
             }
 
             subjects.forEach((subject, index) => {
-                let finalPrompt = (master === "") ? subject : (master.includes('[SUBJECT]') ? master.replace(/\[SUBJECT\]/g, subject) : master + " " + subject);
+                let finalPrompt = "";
+                const placeholderRegex = /\[[^\]]+\]/g; // จับอะไรก็ได้ที่อยู่ในวงเล็บเหลี่ยม เช่น [food], [fruits name]
+
+                if (master === "") {
+                    finalPrompt = subject;
+                } else if (placeholderRegex.test(master)) {
+                    // แทนที่ทุกวงเล็บเหลี่ยมด้วย subject
+                    finalPrompt = master.replace(placeholderRegex, subject);
+                } else {
+                    finalPrompt = master + " " + subject;
+                }
                 
                 const item = document.createElement('div');
                 item.className = "p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-indigo-200 transition-all";
-                item.innerHTML = `
-                    <div class="flex items-start gap-3 mb-3">
-                        <span class="text-[9px] font-bold bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded shrink-0">${index + 1}</span>
-                        <p class="text-[13px] text-slate-700 leading-relaxed font-medium break-words">${finalPrompt}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="copyText('${finalPrompt.replace(/'/g, "\\'")}')" class="flex-1 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-500 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition-all">Copy</button>
-                        <button onclick="openImagePicker('${finalPrompt.replace(/'/g, "\\'")}')" class="flex-1 py-1.5 bg-indigo-50 text-[10px] font-bold text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">Add Photo</button>
-                    </div>
-                `;
+                
+                // สร้างปุ่มแบบระบุ Event Listener แทนการใช้ inline onclick เพื่อป้องกันปัญหาเครื่องหมายคำพูด
+                const promptP = document.createElement('p');
+                promptP.className = "text-[13px] text-slate-700 leading-relaxed font-medium break-words mb-3";
+                promptP.innerText = finalPrompt;
+
+                const btnContainer = document.createElement('div');
+                btnContainer.className = "flex gap-2";
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = "flex-1 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-500 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-100";
+                copyBtn.innerText = "Copy";
+                copyBtn.onclick = () => copyText(finalPrompt);
+
+                const photoBtn = document.createElement('button');
+                photoBtn.className = "flex-1 py-1.5 bg-indigo-50 text-[10px] font-bold text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all";
+                photoBtn.innerText = "Add Photo";
+                photoBtn.onclick = () => openImagePicker(finalPrompt);
+
+                const indexSpan = document.createElement('span');
+                indexSpan.className = "text-[9px] font-bold bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded shrink-0 self-start";
+                indexSpan.innerText = index + 1;
+
+                const topRow = document.createElement('div');
+                topRow.className = "flex items-start gap-3 mb-1";
+                topRow.appendChild(indexSpan);
+                topRow.appendChild(promptP);
+
+                item.appendChild(topRow);
+                btnContainer.appendChild(copyBtn);
+                btnContainer.appendChild(photoBtn);
+                item.appendChild(btnContainer);
+
                 resultsList.appendChild(item);
             });
         }
 
-        // --- PROJECT MANAGEMENT (SAVE TEXT + IMAGES) ---
+        // --- PROJECT MANAGEMENT ---
 
         function exportProject() {
             if (savedGallery.length === 0 && masterInput.value === "" && subjectsInput.value === "") {
                 showToast("ไม่มีข้อมูลให้บันทึก");
                 return;
             }
-            
             const projectData = {
                 master: masterInput.value,
                 subjects: subjectsInput.value,
@@ -177,7 +209,6 @@
                 settings: { splitByComma: splitByCommaCheck.checked },
                 timestamp: new Date().toISOString()
             };
-
             const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -192,7 +223,6 @@
         projectInput.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = (event) => {
                 try {
@@ -201,7 +231,6 @@
                     subjectsInput.value = data.subjects || "";
                     savedGallery = data.gallery || [];
                     splitByCommaCheck.checked = data.settings?.splitByComma || false;
-                    
                     updateResults();
                     renderGallery();
                     showToast("Project Loaded!");
@@ -231,7 +260,7 @@
         function addToGallery(imgData, prompt) {
             savedGallery.unshift({ id: Date.now(), img: imgData, prompt: prompt });
             renderGallery();
-            showToast("Saved to Reference!");
+            showToast("Saved Reference!");
         }
 
         function renderGallery() {
@@ -246,11 +275,11 @@
                 div.className = "gallery-item bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm relative group";
                 div.innerHTML = `
                     <img src="${item.img}" class="w-full aspect-square object-cover">
-                    <div class="gallery-overlay absolute inset-0 bg-black/80 opacity-0 transition-opacity flex flex-col justify-end p-3">
+                    <div class="gallery-overlay absolute inset-0 bg-black/80 opacity-0 transition-opacity flex flex-col justify-end p-3 text-left">
                         <p class="text-[9px] text-white/70 line-clamp-4 mb-2 italic">"${item.prompt}"</p>
                         <div class="flex gap-2">
                             <button onclick="downloadImage('${item.img}')" class="flex-1 py-1.5 bg-white text-[9px] font-bold text-slate-900 rounded-lg">Down</button>
-                            <button onclick="removeFromGallery(${item.id})" class="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                            <button onclick="removeFromGallery(${item.id})" class="p-1.5 bg-red-500 text-white rounded-lg">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -285,9 +314,13 @@
             el.value = text;
             document.body.appendChild(el);
             el.select();
-            document.execCommand('copy');
+            try {
+                document.execCommand('copy');
+                showToast("Copied to clipboard!");
+            } catch (err) {
+                showToast("Unable to copy");
+            }
             document.body.removeChild(el);
-            showToast("Copied!");
         }
 
         function copyAll() {
